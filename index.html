@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>תנופה - מערכת ניהול קרקעות</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Heebo', 'Inter', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Geoman CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css" />
+    
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Heebo:wght@300;400;500;700;900&display=swap');
+      
+      body {
+        font-family: 'Heebo', 'Inter', sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f8fafc;
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .dark ::-webkit-scrollbar-track {
+        background: #0f172a; 
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #334155; 
+        border-radius: 3px;
+      }
+      .dark ::-webkit-scrollbar-thumb:hover {
+        background: #475569; 
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: #f8fafc; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1; 
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8; 
+      }
+
+      .leaflet-container {
+        background: #e2e8f0;
+      }
+      .dark .leaflet-container {
+        background: #0f172a;
+      }
+    </style>
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.460.0?external=react",
+    "react-leaflet": "https://esm.sh/react-leaflet@5.0.0?external=react,react-dom,leaflet",
+    "recharts": "https://esm.sh/recharts@2.13.0?external=react,react-dom",
+    "leaflet": "https://esm.sh/leaflet@1.9.4",
+    "esri-leaflet": "https://esm.sh/esri-leaflet@3.0.12?external=leaflet",
+    "leaflet-geoman": "https://esm.sh/@geoman-io/leaflet-geoman-free@2.14.2?external=leaflet",
+    "turf": "https://esm.sh/@turf/turf@6.5.0",
+    "@google/genai": "https://esm.sh/@google/genai@0.21.0",
+    "firebase/app": "https://esm.sh/firebase@10.8.0/app",
+    "firebase/auth": "https://esm.sh/firebase@10.8.0/auth",
+    "firebase/firestore": "https://esm.sh/firebase@10.8.0/firestore",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
