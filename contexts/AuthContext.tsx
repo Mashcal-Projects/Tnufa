@@ -1,10 +1,10 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut, 
+  signOut,
   User
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -30,10 +30,10 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   loading: true,
-  login: async () => {},
-  signup: async () => {},
-  logout: async () => {},
-  updateProfile: async () => {},
+  login: async () => { },
+  signup: async () => { },
+  logout: async () => { },
+  updateProfile: async () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -48,21 +48,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      
+
       if (currentUser) {
         // Subscribe to real-time profile updates
         const userDocRef = doc(db, 'users', currentUser.uid);
-        unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
-          } else {
-            // New user, create empty profile
-            const newProfile = { personalSheetId: null, role: 'user', updatedAt: Date.now() };
-            setDoc(userDocRef, newProfile);
-            setProfile(newProfile);
+        unsubscribeProfile = onSnapshot(
+          userDocRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              setProfile(docSnap.data() as UserProfile);
+            } else {
+              // New user, create empty profile
+              const newProfile = { personalSheetId: null, role: 'user', updatedAt: Date.now() };
+              setDoc(userDocRef, newProfile).catch(err => {
+                console.error('Error creating user profile:', err);
+              });
+              setProfile(newProfile);
+            }
+            setLoading(false);
+          },
+          (error) => {
+            console.error('Error listening to profile:', error);
+            // Set a default profile on error
+            setProfile({ personalSheetId: null, role: 'user', updatedAt: Date.now() });
+            setLoading(false);
           }
-          setLoading(false);
-        });
+        );
       } else {
         setProfile(null);
         setLoading(false);
