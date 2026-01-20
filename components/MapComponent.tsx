@@ -142,6 +142,16 @@ const MapController = ({ center, zoom, shouldFly }: { center: [number, number], 
     return null;
 };
 
+const ResizeHandler = () => {
+    const map = useMap();
+    useEffect(() => {
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 200);
+    }, [map]);
+    return null;
+};
+
 const GenericPolygonLayer: React.FC<{ url: string, label: string, style: any, fallbackData?: any }> = ({ url, label, style, fallbackData }) => {
     const map = useMap();
     const layerRef = useRef<L.GeoJSON | null>(null);
@@ -277,6 +287,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, activeSubLaye
                 style={{ height: '100%', width: '100%', background: '#f8fafc' }}
             >
                 <MapController center={targetView.center} zoom={targetView.zoom} shouldFly={targetView.shouldFly} />
+                <ResizeHandler />
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; OpenStreetMap contributors'
