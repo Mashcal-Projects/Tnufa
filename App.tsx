@@ -20,8 +20,8 @@ export type Theme = 'dark' | 'light';
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ViewState>('dashboard');
   const [theme, setTheme] = useState<Theme>('light');
-  const { user, loading: authLoading, login, signup, logout } = useAuth();
-  
+  const { user, profile, loading: authLoading, login, signup, logout } = useAuth();
+
   // Login/Register Form State
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [email, setEmail] = useState('');
@@ -44,7 +44,7 @@ const AppContent: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
-    
+
     setFormError(null);
     setIsSubmitting(true);
     try {
@@ -86,7 +86,7 @@ const AppContent: React.FC = () => {
       case 'funding':
         return <Funding />;
       case 'settings':
-        return <Settings />;
+        return profile?.role === 'admin' ? <Settings /> : <Dashboard theme={theme} />;
       default:
         return <Dashboard theme={theme} />;
     }
@@ -106,14 +106,14 @@ const AppContent: React.FC = () => {
         <div className="max-w-md w-full p-4 lg:p-8">
           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-8 space-y-8 fade-in relative overflow-hidden">
             <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-blue-600"></div>
-            
+
             <div className="text-center">
               <div className="flex justify-center mb-6">
                 <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-cyan-500/30">
                   <span className="text-white text-4xl font-black">ת</span>
                 </div>
               </div>
-              
+
               <div>
                 <h1 className="text-3xl font-black text-slate-900 dark:text-white mb-2">
                   {isRegisterMode ? 'יצירת חשבון חדש' : 'ברוכים הבאים'}
@@ -123,61 +123,61 @@ const AppContent: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-               {formError && (
-                 <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-3 rounded-xl flex items-center gap-3 text-rose-600 dark:text-rose-400 text-xs">
-                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                   {formError}
-                 </div>
-               )}
+              {formError && (
+                <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-3 rounded-xl flex items-center gap-3 text-rose-600 dark:text-rose-400 text-xs">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {formError}
+                </div>
+              )}
 
-               <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 mr-2">אימייל</label>
-                  <div className="relative">
-                    <Mail className="absolute right-3 top-3 w-4 h-4 text-slate-400" />
-                    <input 
-                      type="email" 
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@authority.gov.il"
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pr-10 pl-4 text-sm outline-none focus:ring-2 focus:ring-cyan-500 transition-all dark:text-white"
-                    />
-                  </div>
-               </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 mr-2">אימייל</label>
+                <div className="relative">
+                  <Mail className="absolute right-3 top-3 w-4 h-4 text-slate-400" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@authority.gov.il"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pr-10 pl-4 text-sm outline-none focus:ring-2 focus:ring-cyan-500 transition-all dark:text-white"
+                  />
+                </div>
+              </div>
 
-               <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 mr-2">סיסמה</label>
-                  <div className="relative">
-                    <Lock className="absolute right-3 top-3 w-4 h-4 text-slate-400" />
-                    <input 
-                      type="password" 
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pr-10 pl-4 text-sm outline-none focus:ring-2 focus:ring-cyan-500 transition-all dark:text-white"
-                    />
-                  </div>
-               </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 mr-2">סיסמה</label>
+                <div className="relative">
+                  <Lock className="absolute right-3 top-3 w-4 h-4 text-slate-400" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pr-10 pl-4 text-sm outline-none focus:ring-2 focus:ring-cyan-500 transition-all dark:text-white"
+                  />
+                </div>
+              </div>
 
-               <button 
-                 type="submit"
-                 disabled={isSubmitting}
-                 className="w-full bg-slate-900 dark:bg-cyan-600 hover:bg-slate-800 dark:hover:bg-cyan-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl disabled:opacity-50 disabled:scale-100"
-               >
-                 {isSubmitting ? (
-                   <Loader2 className="w-5 h-5 animate-spin" />
-                 ) : isRegisterMode ? (
-                   <UserPlus className="w-5 h-5" />
-                 ) : (
-                   <LogIn className="w-5 h-5" />
-                 )}
-                 {isRegisterMode ? 'צור חשבון והתחבר' : 'התחברות למערכת'}
-               </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-slate-900 dark:bg-cyan-600 hover:bg-slate-800 dark:hover:bg-cyan-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl disabled:opacity-50 disabled:scale-100"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : isRegisterMode ? (
+                  <UserPlus className="w-5 h-5" />
+                ) : (
+                  <LogIn className="w-5 h-5" />
+                )}
+                {isRegisterMode ? 'צור חשבון והתחבר' : 'התחברות למערכת'}
+              </button>
             </form>
 
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
-              <button 
+              <button
                 onClick={() => {
                   setIsRegisterMode(!isRegisterMode);
                   setFormError(null);
@@ -194,17 +194,17 @@ const AppContent: React.FC = () => {
                 )}
               </button>
             </div>
-            
+
             <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400">
-               <ShieldCheck className="w-3 h-3" />
-               <span>גישה מאובטחת לבעלי הרשאה בלבד</span>
+              <ShieldCheck className="w-3 h-3" />
+              <span>גישה מאובטחת לבעלי הרשאה בלבד</span>
             </div>
           </div>
-          
+
           <div className="mt-8 flex justify-center gap-4">
-             <button onClick={toggleTheme} className="p-3 rounded-full bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 transition-all shadow-md hover:scale-110 active:scale-90">
-                {theme === 'dark' ? '🌞' : '🌙'}
-             </button>
+            <button onClick={toggleTheme} className="p-3 rounded-full bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 transition-all shadow-md hover:scale-110 active:scale-90">
+              {theme === 'dark' ? '🌞' : '🌙'}
+            </button>
           </div>
         </div>
       </div>
@@ -213,25 +213,26 @@ const AppContent: React.FC = () => {
 
   return (
     <div className={`flex h-screen overflow-hidden transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'} font-sans dir-rtl`}>
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        theme={theme} 
-        toggleTheme={toggleTheme} 
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        theme={theme}
+        toggleTheme={toggleTheme}
         onLogout={logout}
+        role={profile?.role}
       />
-      
+
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header theme={theme} />
-        
+
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 scroll-smooth">
           <div className="max-w-7xl mx-auto w-full">
-             {renderContent()}
+            {renderContent()}
           </div>
-          
+
           <footer className={`mt-12 py-6 border-t text-center ${theme === 'dark' ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
             <p className="text-xs">
-              © {new Date().getFullYear()} Tnufa Systems Ltd. All rights reserved. 
+              © {new Date().getFullYear()} Tnufa Systems Ltd. All rights reserved.
               <span className="mx-2">•</span>
               v2.6.0 (Production)
             </p>

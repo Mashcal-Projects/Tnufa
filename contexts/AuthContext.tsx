@@ -13,7 +13,8 @@ import { auth, db } from '../firebase';
 interface UserProfile {
   personalSheetId: string | null;
   role: string;
-  updatedAt: number;
+  email: string;
+  updatedAt: string;
 }
 
 interface AuthContextType {
@@ -52,17 +53,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (currentUser) {
         // Subscribe to real-time profile updates
         const userDocRef = doc(db, 'users', currentUser.uid);
+        console.log('Subscribing to profile for UID:', currentUser.uid);
         unsubscribeProfile = onSnapshot(
           userDocRef,
           (docSnap) => {
             if (docSnap.exists()) {
+              console.log('Profile found:', docSnap.data());
               setProfile(docSnap.data() as UserProfile);
             } else {
+              console.log('No profile exists. Creating one...');
               // New user, create empty profile
-              const newProfile = { personalSheetId: null, role: 'user', updatedAt: Date.now() };
-              setDoc(userDocRef, newProfile).catch(err => {
-                console.error('Error creating user profile:', err);
-              });
+              const newProfile: UserProfile = {
+                personalSheetId: null,
+                role: 'user',
+                email: currentUser.email || '',
+                updatedAt: new Date().toISOString()
+              };
+              setDoc(userDocRef, newProfile)
+                .then(() => console.log('Successfully created profile in Firestore'))
+                .catch(err => {
+                  console.error('Error creating user profile:', err);
+                });
               setProfile(newProfile);
             }
             setLoading(false);
@@ -70,7 +81,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           (error) => {
             console.error('Error listening to profile:', error);
             // Set a default profile on error
-            setProfile({ personalSheetId: null, role: 'user', updatedAt: Date.now() });
+            setProfile({
+              personalSheetId: null,
+              role: 'user',
+              email: currentUser?.email || '',
+              updatedAt: new Date().toISOString()
+            });
             setLoading(false);
           }
         );
@@ -101,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (data: Partial<UserProfile>) => {
     if (!user) return;
     const userDocRef = doc(db, 'users', user.uid);
-    await setDoc(userDocRef, { ...profile, ...data, updatedAt: Date.now() }, { merge: true });
+    await setDoc(userDocRef, { ...profile, ...data, updatedAt: new Date().toISOString() }, { merge: true });
   };
 
   return (
