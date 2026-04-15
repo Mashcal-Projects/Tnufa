@@ -192,7 +192,7 @@ const GenericPolygonLayer: React.FC<{ url: string, label: string, style: any, fa
     return null;
 };
 
-const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, activeSubLayers }) => {
+const MapComponent: React.FC<MapComponentProps> = ({ isDarkMode, activeLayers, activeSubLayers }) => {
     const { markers, standards } = useData();
     const [targetView, setTargetView] = useState<{ center: [number, number], zoom: number, shouldFly: boolean }>({
         center: [31.900, 35.015],
@@ -262,20 +262,26 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, activeSubLaye
         }
     };
 
-    // Memoized Icons for markers to prevent re-creation and interaction lag
     const createMarkerIcon = (risk: string) => {
-        const color = risk === 'גבוה' ? '#f43f5e' : '#fbbf24';
+        const isHigh = risk === 'גבוה';
+        const color = isHigh ? '#f43f5e' : '#fbbf24';
+        const strokeColor = isDarkMode ? '#ffffff' : '#0f172a';
+        const pulseRing = isHigh
+            ? `<div class="marker-pulse-ring"></div>`
+            : '';
         return L.divIcon({
             className: 'custom-map-icon',
-            html: `<div style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1))">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="${color}" stroke="#0f172a" stroke-width="1" style="pointer-events: none">
-                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-                    <circle cx="12" cy="10" r="3" fill="#0f172a"/>
-                  </svg>
+            html: `
+                <div style="position:relative;display:inline-block;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.25))">
+                    ${pulseRing}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="${color}" stroke="${strokeColor}" stroke-width="1.5" style="pointer-events:none">
+                        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                        <circle cx="12" cy="10" r="3" fill="${strokeColor}"/>
+                    </svg>
                 </div>`,
-            iconSize: [32, 32],
-            iconAnchor: [16, 32],
-            popupAnchor: [0, -32] // CRITICAL: This ensures the popup appears ABOVE the marker icon.
+            iconSize: [36, 36],
+            iconAnchor: [18, 36],
+            popupAnchor: [0, -36]
         });
     };
 
@@ -289,8 +295,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, activeSubLaye
                 <MapController center={targetView.center} zoom={targetView.zoom} shouldFly={targetView.shouldFly} />
                 <ResizeHandler />
                 <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; OpenStreetMap contributors'
+                    key={isDarkMode ? 'dark' : 'light'}
+                    url={isDarkMode
+                        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+                    }
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                    subdomains="abcd"
                 />
 
                 <GeomanControl

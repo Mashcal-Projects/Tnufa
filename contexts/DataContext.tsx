@@ -128,10 +128,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     // Define helper to update state for a specific key
-    const loadAndSet = async (sheetName: string, key: string, mapper: (row: any) => any) => {
+    const loadAndSet = async (sheetName: string, key: string, mapper: (row: any, index: number) => any) => {
       try {
         const rows = await fetchSheet(sheetName);
-        const mappedRows = rows.map(mapper);
+        const mappedRows = rows.map((row, index) => mapper(row, index));
         setData((prev: any) => {
           const newData = { ...prev, [key]: mappedRows };
           // Save to cache after each sheet updates
@@ -147,8 +147,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Fetch all sheets in parallel, but update state as each one finishes
       await Promise.all([
         loadAndSet('Settlements', 'settlements', s => ({ name: (s.name || '').trim(), type: (s.type || 'urban_new').trim() })),
-        loadAndSet('Assets', 'assets', a => ({
-          id: Number(a.id) || Math.random(),
+        loadAndSet('Assets', 'assets', (a, i) => ({
+          id: Number(a.id) || i,
           name: (a.name || '').trim(),
           type: (a.type || 'כללי').trim(),
           size: Number(a.size) || 0,
@@ -167,16 +167,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           minPopulationForFacility: Number(s.threshold) || 0,
           populationRatio: Number(s.population_ratio) || 0.1
         })),
-        loadAndSet('MapMarkers', 'markers', m => ({
-          id: Number(m.id) || Math.random(),
+        loadAndSet('MapMarkers', 'markers', (m, i) => ({
+          id: Number(m.id) || i,
           lat: Number(m.lat),
           lng: Number(m.lng),
           name: (m.name || 'Marker').trim(),
           risk: (m.risk || 'נמוך').trim() as any,
           details: (m.details || '').trim()
         })),
-        loadAndSet('Analytics', 'analytics', a => ({
-          id: Number(a.id) || Math.random(),
+        loadAndSet('Analytics', 'analytics', (a, i) => ({
+          id: Number(a.id) || i,
           name: (a.name || 'Site').trim(),
           size: (a.size || '0').trim(),
           buildings: (a.buildings || 'None').trim(),

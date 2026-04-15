@@ -10,6 +10,10 @@ import Analytics from './views/Analytics';
 import Settings from './views/Settings';
 import GeoAI from './views/GeoAI';
 import Funding from './views/Funding';
+import FieldVisits from './views/FieldVisits';
+import SiteStatus from './views/SiteStatus';
+import SiteDocuments from './views/SiteDocuments';
+import CommitteeProtocol from './views/CommitteeProtocol';
 import { ViewState } from './types';
 import { DataProvider } from './contexts/DataContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -85,6 +89,14 @@ const AppContent: React.FC = () => {
         return <GeoAI />;
       case 'funding':
         return <Funding />;
+      case 'fieldvisits':
+        return <FieldVisits />;
+      case 'sitestatus':
+        return <SiteStatus />;
+      case 'sitedocs':
+        return <SiteDocuments />;
+      case 'protocol':
+        return <CommitteeProtocol />;
       case 'settings':
         return profile?.role === 'admin' ? <Settings /> : <Dashboard theme={theme} />;
       default:

@@ -1,5 +1,16 @@
 
-export type ViewState = 'dashboard' | 'analytics' | 'calculators' | 'assets' | 'planning' | 'settings' | 'geoai' | 'funding';
+export type ViewState = 'dashboard' | 'analytics' | 'calculators' | 'assets' | 'planning' | 'settings' | 'geoai' | 'funding' | 'fieldvisits' | 'sitestatus' | 'sitedocs' | 'protocol';
+
+export interface FieldVisit {
+  id: string;
+  userId: string;
+  date: string;        // YYYY-MM-DD
+  siteName: string;
+  description: string;
+  tags: string[];
+  photos: string[];    // compressed base64 JPEG data URLs
+  createdAt: string;   // ISO string
+}
 
 export interface Asset {
   id: number;
@@ -58,6 +69,31 @@ export interface BrownfieldAnalysis {
   size: string;
   buildings: string;
   radar: { subject: string; A: number; B: number; fullMark: number }[];
+}
+
+export const SITE_STATUSES = ['זוהה', 'בבדיקה', 'בתכנון', 'אושר', 'בביצוע', 'הושלם'] as const;
+export type SiteStatusValue = typeof SITE_STATUSES[number];
+
+export interface SiteStatusItem {
+  id: string;
+  userId: string;
+  siteName: string;
+  status: SiteStatusValue;
+  notes: string;
+  area?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SiteDocument {
+  id: string;
+  userId: string;
+  siteName: string;
+  fileName: string;
+  fileType: string;
+  fileData: string;   // base64
+  notes: string;
+  uploadedAt: string;
 }
 
 export interface DashboardItem {

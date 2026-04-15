@@ -11,7 +11,11 @@ import {
   Sun,
   Moon,
   Brain,
-  Coins
+  Coins,
+  ClipboardList,
+  Workflow,
+  FolderOpen,
+  ScrollText,
 } from 'lucide-react';
 import { ViewState } from '../types';
 import { Theme } from '../App';
@@ -33,6 +37,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, theme, toggl
     { id: 'planning', label: 'סייר המדריך (תקנים)', icon: BookOpen },
     { id: 'assets', label: 'מצאי נכסים קיים', icon: Building2 },
     { id: 'analytics', label: 'ניתוח ודוחות', icon: BarChart3 },
+    { id: 'fieldvisits', label: 'יומן ביקורים', icon: ClipboardList },
+    { id: 'sitestatus', label: 'מעקב סטטוס שטחים', icon: Workflow },
+    { id: 'sitedocs', label: 'מסמכי שטח', icon: FolderOpen },
+    { id: 'protocol', label: 'פרוטוקול ועדה', icon: ScrollText },
     { id: 'geoai', label: 'Geo AI (בינה מלאכותית)', icon: Brain },
   ];
 
