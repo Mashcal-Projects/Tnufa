@@ -14,8 +14,10 @@ interface DataContextType {
   analytics: BrownfieldAnalysis[];
   dashboard: DashboardItem[];
   loading: boolean;
+  isDemoMode: boolean;
   error: string | null;
   refreshData: () => void;
+  addAsset: (asset: Omit<Asset, 'id'>) => void;
 }
 
 const DataContext = createContext<DataContextType>({
@@ -26,8 +28,10 @@ const DataContext = createContext<DataContextType>({
   analytics: [],
   dashboard: [],
   loading: false,
+  isDemoMode: false,
   error: null,
   refreshData: () => { },
+  addAsset: () => { },
 });
 
 export const useData = () => useContext(DataContext);
@@ -210,12 +214,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user && !authLoading) fetchData();
   }, [user, authLoading]);
 
+  const addAsset = (asset: Omit<Asset, 'id'>) => {
+    setData((prev: any) => {
+      const newId = prev.assets.length > 0 ? Math.max(...prev.assets.map((a: Asset) => a.id)) + 1 : 1;
+      const newAsset: Asset = { ...asset, id: newId };
+      const newData = { ...prev, assets: [...prev.assets, newAsset] };
+      if (user) localStorage.setItem(`tnufa_cache_${user.uid}`, JSON.stringify(newData));
+      return newData;
+    });
+  };
+
   return (
     <DataContext.Provider value={{
       ...data,
       loading,
+      isDemoMode: !user,
       error,
       refreshData: fetchData,
+      addAsset,
     }}>
       {children}
     </DataContext.Provider>

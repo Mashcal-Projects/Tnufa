@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   collection, query, where, onSnapshot,
   addDoc, deleteDoc, doc,
@@ -94,92 +95,98 @@ const UploadModal: React.FC<UploadModalProps> = ({ siteNames, onClose, onSave })
     }
   };
 
-  return (
+  return createPortal(
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full" style={{ maxWidth: 480 }}>
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-[480px] flex flex-col max-h-[85vh]">
+        {/* Header — fixed */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">העלאת מסמך לשטח</h2>
           <button type="button" onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="flex items-center gap-2 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl p-3 text-rose-600 dark:text-rose-400 text-sm">
-              <AlertCircle size={16} />{error}
-            </div>
-          )}
 
-          {/* Site selector */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">שטח / נכס</label>
-            {!useCustom && siteNames.length > 0 ? (
-              <div className="flex gap-2">
-                <select
-                  value={siteName}
-                  onChange={e => setSiteName(e.target.value)}
-                  className="flex-1 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
-                >
-                  {siteNames.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <button type="button" onClick={() => setUseCustom(true)} className="px-3 text-xs text-cyan-600 hover:text-cyan-500 border border-slate-200 dark:border-slate-600 rounded-xl">חדש</button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  type="text" value={customSite} onChange={e => setCustomSite(e.target.value)}
-                  placeholder="הזן שם שטח..."
-                  className="flex-1 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-cyan-500"
-                />
-                {siteNames.length > 0 && (
-                  <button type="button" onClick={() => setUseCustom(false)} className="px-3 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl">רשימה</button>
-                )}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl p-3 text-rose-600 dark:text-rose-400 text-sm">
+                <AlertCircle size={16} />{error}
               </div>
             )}
-          </div>
 
-          {/* File upload area */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">
-              קובץ (מקסימום {formatBytes(MAX_FILE_BYTES)})
-            </label>
-            <div
-              onClick={() => fileRef.current?.click()}
-              style={{ border: '2px dashed #cbd5e1', borderRadius: 12, padding: '20px 16px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
-              className="hover:border-cyan-400"
-            >
-              {file ? (
-                <div className="flex items-center justify-center gap-3">
-                  {fileIcon(file.type)}
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{file.name}</p>
-                    <p className="text-xs text-slate-400">{formatBytes(file.size)}</p>
-                  </div>
-                  <button type="button" onClick={e => { e.stopPropagation(); setFile(null); setFileData(null); }} className="text-slate-300 hover:text-rose-500 transition-colors"><X size={16} /></button>
+            {/* Site selector */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">שטח / נכס</label>
+              {!useCustom && siteNames.length > 0 ? (
+                <div className="flex gap-2">
+                  <select
+                    value={siteName}
+                    onChange={e => setSiteName(e.target.value)}
+                    className="flex-1 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
+                  >
+                    {siteNames.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                  <button type="button" onClick={() => setUseCustom(true)} className="px-3 text-xs text-cyan-600 hover:text-cyan-500 border border-slate-200 dark:border-slate-600 rounded-xl">חדש</button>
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-2 text-slate-400">
-                  <Upload size={24} />
-                  <span className="text-sm">לחץ לבחירת קובץ</span>
-                  <span className="text-xs">PDF, תמונות, Word, Excel ועוד</span>
+                <div className="flex gap-2">
+                  <input
+                    type="text" value={customSite} onChange={e => setCustomSite(e.target.value)}
+                    placeholder="הזן שם שטח..."
+                    className="flex-1 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  {siteNames.length > 0 && (
+                    <button type="button" onClick={() => setUseCustom(false)} className="px-3 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl">רשימה</button>
+                  )}
                 </div>
               )}
             </div>
-            <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
+
+            {/* File upload area */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                קובץ (מקסימום {formatBytes(MAX_FILE_BYTES)})
+              </label>
+              <div
+                onClick={() => fileRef.current?.click()}
+                style={{ border: '2px dashed #cbd5e1', borderRadius: 12, padding: '20px 16px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                className="hover:border-cyan-400"
+              >
+                {file ? (
+                  <div className="flex items-center justify-center gap-3">
+                    {fileIcon(file.type)}
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{file.name}</p>
+                      <p className="text-xs text-slate-400">{formatBytes(file.size)}</p>
+                    </div>
+                    <button type="button" onClick={e => { e.stopPropagation(); setFile(null); setFileData(null); }} className="text-slate-300 hover:text-rose-500 transition-colors"><X size={16} /></button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-slate-400">
+                    <Upload size={24} />
+                    <span className="text-sm">לחץ לבחירת קובץ</span>
+                    <span className="text-xs">PDF, תמונות, Word, Excel ועוד</span>
+                  </div>
+                )}
+              </div>
+              <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">הערות (אופציונלי)</label>
+              <input
+                type="text" value={notes} onChange={e => setNotes(e.target.value)}
+                placeholder="תוכנית מפורטת, אישור רשות, תמונת שטח..."
+                className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            </div>
           </div>
 
-          {/* Notes */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">הערות (אופציונלי)</label>
-            <input
-              type="text" value={notes} onChange={e => setNotes(e.target.value)}
-              placeholder="תוכנית מפורטת, אישור רשות, תמונת שטח..."
-              className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-1">
+          {/* Actions — fixed at bottom */}
+          <div className="flex gap-3 p-6 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
             <button type="submit" disabled={uploading} className="flex-1 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
               {uploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
               {uploading ? 'מעלה...' : 'העלה מסמך'}
@@ -188,7 +195,8 @@ const UploadModal: React.FC<UploadModalProps> = ({ siteNames, onClose, onSave })
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -375,8 +383,8 @@ const SiteDocuments: React.FC = () => {
       )}
 
       {/* Confirm Delete */}
-      {confirmDelete && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      {confirmDelete && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full">
             <h3 className="font-bold text-slate-900 dark:text-white text-lg mb-2">מחיקת מסמך</h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">האם אתה בטוח? לא ניתן לבטל פעולה זו.</p>
@@ -385,7 +393,8 @@ const SiteDocuments: React.FC = () => {
               <button onClick={() => setConfirmDelete(null)} className="flex-1 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium py-3 rounded-xl transition-colors">ביטול</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

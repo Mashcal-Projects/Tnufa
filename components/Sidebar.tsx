@@ -41,7 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, theme, toggl
     { id: 'sitestatus', label: 'מעקב סטטוס שטחים', icon: Workflow },
     { id: 'sitedocs', label: 'מסמכי שטח', icon: FolderOpen },
     { id: 'protocol', label: 'פרוטוקול ועדה', icon: ScrollText },
-    { id: 'geoai', label: 'Geo AI (בינה מלאכותית)', icon: Brain },
+    { id: 'geoai', label: ' AI Agent', icon: Brain },
   ];
 
   return (

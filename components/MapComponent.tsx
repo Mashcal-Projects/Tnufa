@@ -44,7 +44,7 @@ const GeomanControl = ({ onShapeCreated, onShapeDeleted }: {
             removalMode: true,
         });
 
-        map.pm.setLang('he');
+        map.pm.setLang('he' as any);
 
         map.on('pm:create', (e) => {
             const layer = e.layer as L.Polygon;
@@ -373,7 +373,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ isDarkMode, activeLayers, a
                     </>
                 )}
 
-                {activeLayers.zoning && <GeoJSON data={{ type: "FeatureCollection", features: [] }} style={{ color: '#10b981', weight: 1, fillColor: '#10b981', fillOpacity: 0.4 }} />}
+                {activeLayers.zoning && <GeoJSON data={{ type: "FeatureCollection" as const, features: [] } as GeoJSON.FeatureCollection} style={{ color: '#10b981', weight: 1, fillColor: '#10b981', fillOpacity: 0.4 }} />}
 
                 {activeLayers.schools && markers.map((m, idx) => <CircleMarker key={idx} center={[m.lat, m.lng]} radius={8} pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.9, weight: 1 }}><Popup>{m.name}</Popup></CircleMarker>)}
 

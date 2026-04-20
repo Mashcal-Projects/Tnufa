@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   collection, query, where, onSnapshot,
   addDoc, updateDoc, deleteDoc, doc,
@@ -154,15 +155,14 @@ const VisitModal: React.FC<ModalProps> = ({ visit, onClose, onSave }) => {
     }
   };
 
-  return (
-    <div
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+  return createPortal(<div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full" style={{ maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-[560px] flex flex-col max-h-[85vh]">
 
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+        {/* Header — fixed */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">
             {visit ? 'עריכת ביקור' : 'תיעוד ביקור חדש'}
           </h2>
@@ -171,7 +171,9 @@ const VisitModal: React.FC<ModalProps> = ({ visit, onClose, onSave }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {error && (
             <div className="flex items-center gap-2 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl p-3 text-rose-600 dark:text-rose-400 text-sm">
               <AlertCircle size={16} className="flex-shrink-0" />
@@ -289,8 +291,10 @@ const VisitModal: React.FC<ModalProps> = ({ visit, onClose, onSave }) => {
             <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoChange} />
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          </div>{/* end scrollable body */}
+
+          {/* Actions — fixed at bottom */}
+          <div className="flex gap-3 p-6 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
             <button
               type="submit"
               disabled={saving}
@@ -309,8 +313,7 @@ const VisitModal: React.FC<ModalProps> = ({ visit, onClose, onSave }) => {
           </div>
         </form>
       </div>
-    </div>
-  );
+    </div>, document.body);
 };
 
 // ─── Visit Card ───────────────────────────────────────────────────────────────
@@ -466,7 +469,7 @@ const FieldVisits: React.FC = () => {
     setShowModal(true);
   };
 
-  const usedTags    = Array.from(new Set(visits.flatMap(v => v.tags)));
+  const usedTags: string[] = Array.from(new Set(visits.flatMap(v => v.tags)));
   const filtered    = activeTag ? visits.filter(v => v.tags.includes(activeTag)) : visits;
 
   return (
