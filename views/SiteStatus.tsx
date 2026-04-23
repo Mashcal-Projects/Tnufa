@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   collection, query, where, onSnapshot,
   addDoc, updateDoc, deleteDoc, doc,
@@ -53,69 +54,125 @@ const SiteModal: React.FC<ModalProps> = ({ item, initialStatus, onClose, onSave 
     }
   };
 
-  return (
+  const cfg = STATUS_CFG[status];
+
+  return createPortal(
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full" style={{ maxWidth: '480px' }}>
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">{item ? 'עריכת שטח' : 'הוסף שטח חדש'}</h2>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><X size={18} /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="flex items-center gap-2 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl p-3 text-rose-600 dark:text-rose-400 text-sm">
-              <AlertCircle size={16} />{error}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-[500px] flex flex-col max-h-[85vh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-cyan-50 dark:bg-cyan-500/10 rounded-xl">
+              <Workflow size={18} className="text-cyan-600 dark:text-cyan-400" />
             </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">שם השטח / הנכס</label>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                {item ? 'עריכת שטח' : 'הוספת שטח חדש'}
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">מלא את פרטי השטח</p>
+            </div>
+          </div>
+          <button
+            type="button" onClick={onClose}
+            className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
+
+            {error && (
+              <div className="flex items-center gap-2 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl p-3 text-rose-600 dark:text-rose-400 text-sm">
+                <AlertCircle size={16} />{error}
+              </div>
+            )}
+
+            {/* Site name */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                שם השטח / הנכס <span className="text-rose-400">*</span>
+              </label>
               <input
                 type="text" value={siteName} onChange={e => setSiteName(e.target.value)}
                 placeholder="מגרש 12, מתחם התעשייה..."
-                className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-cyan-500"
+                autoFocus
+                className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
               />
             </div>
+
+            {/* Area + Status side by side */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">שטח (דונם)</label>
+                <input
+                  type="text" value={area} onChange={e => setArea(e.target.value)}
+                  placeholder='120 ד"ר'
+                  className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">סטטוס</label>
+                <select
+                  value={status}
+                  onChange={e => setStatus(e.target.value as SiteStatusValue)}
+                  style={{ borderColor: cfg.border }}
+                  className="w-full bg-slate-50 dark:bg-slate-700/50 border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                >
+                  {SITE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Status preview badge */}
+            <div
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold"
+              style={{ background: cfg.bg, borderColor: cfg.border, color: cfg.color }}
+            >
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
+              סטטוס נוכחי: {status}
+            </div>
+
+            {/* Notes */}
             <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">שטח (דונם)</label>
-              <input
-                type="text" value={area} onChange={e => setArea(e.target.value)}
-                placeholder='120 ד"ר'
-                className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-cyan-500"
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">הערות</label>
+              <textarea
+                value={notes} onChange={e => setNotes(e.target.value)}
+                placeholder="פרטים נוספים על השטח..."
+                rows={3}
+                className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-cyan-500 resize-none transition-all"
               />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">סטטוס</label>
-              <select
-                value={status}
-                onChange={e => setStatus(e.target.value as SiteStatusValue)}
-                className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
-              >
-                {SITE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
+
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">הערות</label>
-            <textarea
-              value={notes} onChange={e => setNotes(e.target.value)}
-              placeholder="פרטים נוספים על השטח..."
-              rows={3}
-              className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
-            />
-          </div>
-          <div className="flex gap-3 pt-1">
-            <button type="submit" disabled={saving} className="flex-1 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
+
+          {/* Footer actions */}
+          <div className="flex-shrink-0 px-6 py-5 border-t border-slate-100 dark:border-slate-700 flex gap-3">
+            <button
+              type="submit" disabled={saving}
+              className="flex-1 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm"
+            >
               {saving && <Loader2 size={16} className="animate-spin" />}
               {item ? 'שמור שינויים' : 'הוסף שטח'}
             </button>
-            <button type="button" onClick={onClose} className="px-6 py-3 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-medium">ביטול</button>
+            <button
+              type="button" onClick={onClose}
+              className="px-6 py-3 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-medium"
+            >
+              ביטול
+            </button>
           </div>
         </form>
+
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -343,17 +400,23 @@ const SiteStatus: React.FC = () => {
       )}
 
       {/* Confirm Delete */}
-      {confirmDelete && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      {confirmDelete && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full">
-            <h3 className="font-bold text-slate-900 dark:text-white text-lg mb-2">מחיקת שטח</h3>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-rose-50 dark:bg-rose-900/20 rounded-xl">
+                <Trash2 size={18} className="text-rose-500" />
+              </div>
+              <h3 className="font-bold text-slate-900 dark:text-white text-base">מחיקת שטח</h3>
+            </div>
             <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">האם אתה בטוח? לא ניתן לבטל פעולה זו.</p>
             <div className="flex gap-3">
-              <button onClick={() => handleDelete(confirmDelete)} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-xl transition-colors">מחק</button>
+              <button onClick={() => handleDelete(confirmDelete)} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-xl transition-colors active:scale-95">מחק</button>
               <button onClick={() => setConfirmDelete(null)} className="flex-1 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium py-3 rounded-xl transition-colors">ביטול</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
