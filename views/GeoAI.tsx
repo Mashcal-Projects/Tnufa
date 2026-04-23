@@ -1,17 +1,20 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Brain, Send, User, Bot, Sparkles, AlertCircle, Copy, Check, MessageSquarePlus, PlusCircle, Building2, Trash2 } from 'lucide-react';
+import {
+    Brain, Send, User, Bot, Sparkles, AlertCircle, Copy, Check,
+    MessageSquarePlus, PlusCircle, Building2, Trash2, Plus, Clock, MessageSquare,
+} from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Asset } from '../types';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 interface Message {
     role: 'user' | 'assistant';
     content: string;
-    isWizard?: boolean;   // styled differently — step card
-    isSummary?: boolean;  // summary card before confirm
+    isWizard?: boolean;
+    isSummary?: boolean;
 }
 
 interface WizardData {
@@ -24,7 +27,15 @@ interface WizardData {
     risk: Asset['risk'];
 }
 
-// ── Wizard config ─────────────────────────────────────────────────────────────
+interface ChatSession {
+    id: string;
+    title: string;
+    createdAt: number;
+    updatedAt: number;
+    messages: Message[];
+}
+
+// ── Wizard config ──────────────────────────────────────────────────────────────
 
 const WIZARD_STEPS = [
     {
@@ -106,11 +117,73 @@ const normalizeRisk = (v: string): Asset['risk'] => {
     return 'נמוך';
 };
 
-// ── Wizard message renderer ───────────────────────────────────────────────────
+// ── Session helpers ────────────────────────────────────────────────────────────
+
+const GREETING: Message = {
+    role: 'assistant',
+    content: 'שלום! אני העוזר החכם של מערכת תנופה. אני מכיר את המדריך להקצאת שטחים לצורכי ציבור (פרק ג\') ואת נתוני התקנים שלכם. איך אוכל לעזור לך היום?',
+};
+
+const createNewSession = (): ChatSession => ({
+    id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    title: 'שיחה חדשה',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    messages: [GREETING],
+});
+
+const SESSIONS_KEY = (uid: string) => `tnufa_sessions_${uid}`;
+const OLD_CHAT_KEY = (uid: string) => `tnufa_chat_${uid}`;
+
+function initSessionData(uid: string | undefined): { sessions: ChatSession[]; activeId: string } {
+    if (uid) {
+        // Try new sessions format
+        try {
+            const raw = localStorage.getItem(SESSIONS_KEY(uid));
+            if (raw) {
+                const data = JSON.parse(raw) as { sessions: ChatSession[]; activeId: string };
+                if (Array.isArray(data.sessions) && data.sessions.length && data.activeId) {
+                    return data;
+                }
+            }
+        } catch { /* ignore */ }
+
+        // Migrate from old single-chat format
+        try {
+            const oldRaw = localStorage.getItem(OLD_CHAT_KEY(uid));
+            if (oldRaw) {
+                const oldMessages = JSON.parse(oldRaw) as Message[];
+                if (oldMessages.length > 0) {
+                    const session: ChatSession = {
+                        id: `s_${Date.now()}`,
+                        title: oldMessages.find(m => m.role === 'user')?.content.slice(0, 35) || 'שיחה ישנה',
+                        createdAt: Date.now(),
+                        updatedAt: Date.now(),
+                        messages: oldMessages,
+                    };
+                    localStorage.removeItem(OLD_CHAT_KEY(uid));
+                    return { sessions: [session], activeId: session.id };
+                }
+            }
+        } catch { /* ignore */ }
+    }
+
+    const s = createNewSession();
+    return { sessions: [s], activeId: s.id };
+}
+
+const formatDate = (ts: number): string => {
+    const diff = Date.now() - ts;
+    const day = 24 * 3600 * 1000;
+    if (diff < day) return 'היום';
+    if (diff < 2 * day) return 'אתמול';
+    return new Date(ts).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
+};
+
+// ── Wizard renderers ───────────────────────────────────────────────────────────
 
 const WizardStepCard: React.FC<{ step: number; question: string; hint: string; icon: string }> = ({ step, question, hint, icon }) => (
     <div className="bg-white dark:bg-slate-800 border border-cyan-200 dark:border-cyan-700/50 rounded-2xl p-4 shadow-sm w-full">
-        {/* Progress */}
         <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
                 <span className="text-lg">{icon}</span>
@@ -134,16 +207,15 @@ const WizardStepCard: React.FC<{ step: number; question: string; hint: string; i
 
 const SummaryCard: React.FC<{ data: WizardData }> = ({ data }) => {
     const riskColor = data.risk === 'גבוה' ? 'text-rose-500' : data.risk === 'בינוני' ? 'text-amber-500' : 'text-emerald-500';
-    const rows: { icon: string; label: string; value: string; extra?: string }[] = [
-        { icon: '🏷️', label: 'שם הנכס',        value: data.name || '—' },
-        { icon: '🏢', label: 'סוג ייעוד',       value: data.type || '—' },
-        { icon: '📐', label: 'שטח',             value: data.size ? `${Number(data.size).toLocaleString()} מ"ר` : '—' },
-        { icon: '💰', label: 'תשואה',           value: data.roi ? `${data.roi}%` : '—' },
-        { icon: '🔧', label: 'מצב',             value: data.condition || '—' },
-        { icon: '📅', label: 'תחזוקה',          value: data.maintenance_due || '—' },
-        { icon: '⚠️', label: 'רמת סיכון',       value: data.risk },
+    const rows = [
+        { icon: '🏷️', label: 'שם הנכס',   value: data.name || '—' },
+        { icon: '🏢', label: 'סוג ייעוד',  value: data.type || '—' },
+        { icon: '📐', label: 'שטח',        value: data.size ? `${Number(data.size).toLocaleString()} מ"ר` : '—' },
+        { icon: '💰', label: 'תשואה',      value: data.roi ? `${data.roi}%` : '—' },
+        { icon: '🔧', label: 'מצב',        value: data.condition || '—' },
+        { icon: '📅', label: 'תחזוקה',     value: data.maintenance_due || '—' },
+        { icon: '⚠️', label: 'רמת סיכון',  value: data.risk },
     ];
-
     return (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm w-full">
             <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-100 dark:border-slate-700">
@@ -169,29 +241,25 @@ const SummaryCard: React.FC<{ data: WizardData }> = ({ data }) => {
     );
 };
 
-// ── Main component ────────────────────────────────────────────────────────────
-
-const GREETING: Message = {
-    role: 'assistant',
-    content: 'שלום! אני העוזר החכם של מערכת תנופה. אני מכיר את המדריך להקצאת שטחים לצורכי ציבור (פרק ג\') ואת נתוני התקנים שלכם. איך אוכל לעזור לך היום?',
-};
+// ── Main component ─────────────────────────────────────────────────────────────
 
 const GeoAI: React.FC = () => {
     const { standards, addAsset } = useData();
     const { user } = useAuth();
 
-    const storageKey = user ? `tnufa_chat_${user.uid}` : null;
+    // Sessions state — replaces single messages array
+    const [sessions, setSessions] = useState<ChatSession[]>(() => initSessionData(user?.uid).sessions);
+    const [activeId, setActiveId] = useState<string>(() => initSessionData(user?.uid).activeId);
 
-    const loadHistory = (): Message[] => {
-        if (!storageKey) return [GREETING];
-        try {
-            const raw = localStorage.getItem(storageKey);
-            if (raw) return JSON.parse(raw) as Message[];
-        } catch { /* ignore */ }
-        return [GREETING];
-    };
+    // Keep a ref so functional setState closures always see the current activeId
+    const activeIdRef = useRef(activeId);
+    useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
-    const [messages, setMessages] = useState<Message[]>(loadHistory);
+    // Derive current messages from active session
+    const activeSession = sessions.find(s => s.id === activeId);
+    const messages = activeSession?.messages ?? [GREETING];
+
+    // Chat UI state
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -204,27 +272,91 @@ const GeoAI: React.FC = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-    // Save history to localStorage on every change
+    // Persist all sessions to localStorage whenever state changes
     useEffect(() => {
-        if (!storageKey) return;
-        localStorage.setItem(storageKey, JSON.stringify(messages));
-    }, [messages, storageKey]);
+        if (!user?.uid) return;
+        localStorage.setItem(SESSIONS_KEY(user.uid), JSON.stringify({ sessions, activeId }));
+    }, [sessions, activeId, user?.uid]);
 
-    // Reload history when the logged-in user changes
+    // Reload sessions when the logged-in user changes
     useEffect(() => {
-        setMessages(loadHistory());
+        const data = initSessionData(user?.uid);
+        setSessions(data.sessions);
+        setActiveId(data.activeId);
+        activeIdRef.current = data.activeId;
         setWizardStep(null);
         setWizardData({});
         setAwaitingConfirm(false);
     }, [user?.uid]);
 
-    const clearHistory = () => {
-        if (storageKey) localStorage.removeItem(storageKey);
-        setMessages([GREETING]);
+    // ── Message helpers ────────────────────────────────────────────────────────
+
+    const updateMessages = (updater: (prev: Message[]) => Message[]) => {
+        setSessions(prev => prev.map(s => {
+            if (s.id !== activeIdRef.current) return s;
+            const newMsgs = updater(s.messages);
+            // Auto-title: first user message becomes the session title
+            const firstUser = newMsgs.find(m => m.role === 'user');
+            const title = (s.title === 'שיחה חדשה' && firstUser)
+                ? firstUser.content.slice(0, 35)
+                : s.title;
+            return { ...s, messages: newMsgs, updatedAt: Date.now(), title };
+        }));
+    };
+
+    const pushAssistant = (content: string, extra?: Partial<Message>) =>
+        updateMessages(prev => [...prev, { role: 'assistant', content, ...extra }]);
+
+    // ── Session management ─────────────────────────────────────────────────────
+
+    const startNewConversation = () => {
+        const s = createNewSession();
+        setSessions(prev => [s, ...prev]);
+        setActiveId(s.id);
+        activeIdRef.current = s.id;
         setWizardStep(null);
         setWizardData({});
         setAwaitingConfirm(false);
     };
+
+    const switchSession = (id: string) => {
+        if (id === activeId) return;
+        setActiveId(id);
+        activeIdRef.current = id;
+        setWizardStep(null);
+        setWizardData({});
+        setAwaitingConfirm(false);
+    };
+
+    const deleteSession = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setSessions(prev => {
+            const filtered = prev.filter(s => s.id !== id);
+            if (filtered.length === 0) {
+                const ns = createNewSession();
+                setActiveId(ns.id);
+                activeIdRef.current = ns.id;
+                return [ns];
+            }
+            if (id === activeIdRef.current) {
+                setActiveId(filtered[0].id);
+                activeIdRef.current = filtered[0].id;
+            }
+            return filtered;
+        });
+    };
+
+    const clearCurrentConversation = () => {
+        setSessions(prev => prev.map(s => {
+            if (s.id !== activeIdRef.current) return s;
+            return { ...s, messages: [GREETING], title: 'שיחה חדשה', updatedAt: Date.now() };
+        }));
+        setWizardStep(null);
+        setWizardData({});
+        setAwaitingConfirm(false);
+    };
+
+    // ── Quick prompts ──────────────────────────────────────────────────────────
 
     const quickPrompts = [
         "הוסף נכס חדש",
@@ -233,11 +365,7 @@ const GeoAI: React.FC = () => {
         "הסבר על נספח צורכי ציבור",
     ];
 
-    const pushAssistant = (content: string, extra?: Partial<Message>) => {
-        setMessages(prev => [...prev, { role: 'assistant', content, ...extra }]);
-    };
-
-    // ── Wizard flow ─────────────────────────────────────────────────────────
+    // ── Wizard flow ────────────────────────────────────────────────────────────
 
     const startWizard = () => {
         setWizardStep(0);
@@ -247,7 +375,6 @@ const GeoAI: React.FC = () => {
     };
 
     const handleWizardAnswer = (answer: string) => {
-        // Confirmation screen
         if (awaitingConfirm) {
             const norm = answer.trim().toLowerCase();
             if (['כן', 'yes', 'אישור', 'ok', 'שמור', 'save', 'אשר'].includes(norm)) {
@@ -272,56 +399,46 @@ const GeoAI: React.FC = () => {
 
         if (wizardStep === null) return;
         const step = WIZARD_STEPS[wizardStep];
-
-        // Validate
         const err = step.validate(answer);
         if (err) {
             pushAssistant(`⚠️ ${err}\n${step.hint}`);
             return;
         }
 
-        // Save answer
         const updated = { ...wizardData, [step.key]: answer.trim() };
         setWizardData(updated);
 
         const nextStep = wizardStep + 1;
-
         if (nextStep < TOTAL_STEPS) {
             setWizardStep(nextStep);
             pushAssistant('', { isWizard: true });
         } else {
-            // All done — show summary
             setWizardStep(TOTAL_STEPS);
             setAwaitingConfirm(true);
             pushAssistant('', { isSummary: true });
         }
     };
 
-    // ── Send handler ─────────────────────────────────────────────────────────
+    // ── Send handler ───────────────────────────────────────────────────────────
 
     const handleSend = async (customText?: string) => {
         const textToSend = (customText || input).trim();
         if (!textToSend || loading) return;
         setInput('');
-        setMessages(prev => [...prev, { role: 'user', content: textToSend }]);
+        updateMessages(prev => [...prev, { role: 'user', content: textToSend }]);
 
-        // Check wizard trigger
         const isWizardTrigger = TRIGGER_PHRASES.some(p =>
             textToSend.toLowerCase().includes(p.toLowerCase())
         );
-
         if (isWizardTrigger && wizardStep === null && !awaitingConfirm) {
             startWizard();
             return;
         }
-
-        // In wizard mode — handle answer
         if (wizardStep !== null || awaitingConfirm) {
             handleWizardAnswer(textToSend);
             return;
         }
 
-        // Normal AI flow
         setLoading(true);
         try {
             const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
@@ -368,21 +485,22 @@ ${standardsContext}
         setTimeout(() => setCopiedIdx(null), 2000);
     };
 
-    // ── Render ────────────────────────────────────────────────────────────────
-
-    // Which step to display for wizard cards
+    // Which wizard step index corresponds to a message position
     const getWizardStepForMessage = (msgIdx: number): number => {
-        let stepCount = 0;
+        let count = 0;
         for (let i = 0; i < msgIdx; i++) {
-            if (messages[i].isWizard) stepCount++;
+            if (messages[i].isWizard) count++;
         }
-        return stepCount;
+        return count;
     };
+
+    // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
         <div className="flex flex-col h-[calc(100vh-160px)] fade-in">
-            {/* Header */}
-            <div className="mb-6 flex items-center justify-between">
+
+            {/* ── Header ── */}
+            <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="p-3 bg-cyan-100 dark:bg-cyan-500/10 rounded-2xl">
                         <Brain className="text-cyan-600 dark:text-cyan-400 w-8 h-8" />
@@ -396,8 +514,8 @@ ${standardsContext}
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={clearHistory}
-                        title="נקה היסטוריית שיחה"
+                        onClick={clearCurrentConversation}
+                        title="נקה שיחה נוכחית"
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500 hover:border-rose-300 dark:hover:border-rose-700 text-[11px] font-medium transition-all bg-white dark:bg-slate-800"
                     >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -410,132 +528,186 @@ ${standardsContext}
                 </div>
             </div>
 
-            {/* Chat area */}
-            <div className="flex-1 bg-white dark:bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                    {messages.map((msg, idx) => {
-                        // Wizard step card
-                        if (msg.isWizard) {
-                            const stepIdx = getWizardStepForMessage(idx);
-                            const step = WIZARD_STEPS[Math.min(stepIdx, TOTAL_STEPS - 1)];
-                            return (
-                                <div key={idx} className="flex justify-end">
-                                    <div className="flex gap-4 max-w-[85%] flex-row-reverse">
-                                        <div className="w-10 h-10 rounded-xl bg-cyan-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
-                                            <Bot className="w-6 h-6" />
+            {/* ── Body: chat + history sidebar ── */}
+            <div className="flex flex-1 gap-4 min-h-0">
+
+                {/* Chat area */}
+                <div className="flex-1 bg-white dark:bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col overflow-hidden min-w-0">
+
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                        {messages.map((msg, idx) => {
+
+                            if (msg.isWizard) {
+                                const stepIdx = getWizardStepForMessage(idx);
+                                const step = WIZARD_STEPS[Math.min(stepIdx, TOTAL_STEPS - 1)];
+                                return (
+                                    <div key={idx} className="flex justify-end">
+                                        <div className="flex gap-4 max-w-[85%] flex-row-reverse">
+                                            <div className="w-10 h-10 rounded-xl bg-cyan-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                                                <Bot className="w-6 h-6" />
+                                            </div>
+                                            <WizardStepCard step={stepIdx} question={step.question} hint={step.hint} icon={step.icon} />
                                         </div>
-                                        <WizardStepCard
-                                            step={stepIdx}
-                                            question={step.question}
-                                            hint={step.hint}
-                                            icon={step.icon}
-                                        />
+                                    </div>
+                                );
+                            }
+
+                            if (msg.isSummary) {
+                                return (
+                                    <div key={idx} className="flex justify-end">
+                                        <div className="flex gap-4 max-w-[85%] flex-row-reverse">
+                                            <div className="w-10 h-10 rounded-xl bg-cyan-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                                                <Bot className="w-6 h-6" />
+                                            </div>
+                                            <SummaryCard data={wizardData as WizardData} />
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}>
+                                    <div className={`flex gap-4 max-w-[85%] ${msg.role === 'user' ? 'flex-row' : 'flex-row-reverse'}`}>
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm
+                                            ${msg.role === 'user' ? 'bg-indigo-500 text-white' : 'bg-cyan-500 text-white'}`}>
+                                            {msg.role === 'user' ? <User className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
+                                        </div>
+                                        <div className="group relative">
+                                            <div className={`p-4 rounded-2xl text-[15px] leading-relaxed shadow-sm whitespace-pre-line
+                                                ${msg.role === 'user'
+                                                    ? 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-tr-none'
+                                                    : 'bg-cyan-50 dark:bg-cyan-900/30 text-slate-800 dark:text-slate-100 border border-cyan-100 dark:border-cyan-800/50 rounded-tl-none'}`}>
+                                                {msg.content}
+                                            </div>
+                                            {msg.role === 'assistant' && msg.content && (
+                                                <button
+                                                    onClick={() => handleCopy(msg.content, idx)}
+                                                    className="absolute -bottom-6 left-0 p-1 text-slate-400 hover:text-cyan-500 transition-colors flex items-center gap-1 text-[10px]"
+                                                >
+                                                    {copiedIdx === idx ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                                    {copiedIdx === idx ? 'הועתק' : 'העתק תשובה'}
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             );
-                        }
+                        })}
 
-                        // Summary card
-                        if (msg.isSummary) {
-                            return (
-                                <div key={idx} className="flex justify-end">
-                                    <div className="flex gap-4 max-w-[85%] flex-row-reverse">
-                                        <div className="w-10 h-10 rounded-xl bg-cyan-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
-                                            <Bot className="w-6 h-6" />
-                                        </div>
-                                        <SummaryCard data={wizardData as WizardData} />
-                                    </div>
-                                </div>
-                            );
-                        }
-
-                        // Regular message
-                        return (
-                            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}>
-                                <div className={`flex gap-4 max-w-[85%] ${msg.role === 'user' ? 'flex-row' : 'flex-row-reverse'}`}>
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm
-                                        ${msg.role === 'user' ? 'bg-indigo-500 text-white' : 'bg-cyan-500 text-white'}`}>
-                                        {msg.role === 'user' ? <User className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
-                                    </div>
-                                    <div className="group relative">
-                                        <div className={`p-4 rounded-2xl text-[15px] leading-relaxed shadow-sm whitespace-pre-line
-                                            ${msg.role === 'user'
-                                                ? 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-tr-none'
-                                                : 'bg-cyan-50 dark:bg-cyan-900/30 text-slate-800 dark:text-slate-100 border border-cyan-100 dark:border-cyan-800/50 rounded-tl-none'}`}>
-                                            {msg.content}
-                                        </div>
-                                        {msg.role === 'assistant' && msg.content && (
-                                            <button
-                                                onClick={() => handleCopy(msg.content, idx)}
-                                                className="absolute -bottom-6 left-0 p-1 text-slate-400 hover:text-cyan-500 transition-colors flex items-center gap-1 text-[10px]"
-                                            >
-                                                {copiedIdx === idx ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                                                {copiedIdx === idx ? 'הועתק' : 'העתק תשובה'}
-                                            </button>
-                                        )}
+                        {loading && (
+                            <div className="flex justify-end">
+                                <div className="flex gap-4 items-center">
+                                    <div className="text-xs text-slate-400 font-medium italic animate-pulse">מחשב נתונים ותקנים...</div>
+                                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-500 flex items-center justify-center animate-spin">
+                                        <Sparkles className="w-5 h-5" />
                                     </div>
                                 </div>
                             </div>
-                        );
-                    })}
-
-                    {loading && (
-                        <div className="flex justify-end">
-                            <div className="flex gap-4 items-center">
-                                <div className="text-xs text-slate-400 font-medium italic animate-pulse">מחשב נתונים ותקנים...</div>
-                                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-500 flex items-center justify-center animate-spin">
-                                    <Sparkles className="w-5 h-5" />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
-
-                {/* Input area */}
-                <div className="px-6 py-4 bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        {quickPrompts.map((q, i) => (
-                            <button
-                                key={i}
-                                onClick={() => handleSend(q)}
-                                className="text-[11px] px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-cyan-500 hover:text-cyan-600 transition-all flex items-center gap-1.5"
-                            >
-                                {i === 0 ? <PlusCircle className="w-3 h-3" /> : <MessageSquarePlus className="w-3 h-3" />}
-                                {q}
-                            </button>
-                        ))}
+                        )}
+                        <div ref={messagesEndRef} />
                     </div>
 
-                    <div className="relative max-w-4xl mx-auto flex gap-3">
-                        <textarea
-                            value={input}
-                            onChange={e => setInput(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                            placeholder={
-                                awaitingConfirm
-                                    ? 'הקלד "כן" לשמירה או "לא" לביטול...'
-                                    : wizardStep !== null
-                                        ? 'הקלד את תשובתך...'
-                                        : 'שאלו את ה-AI, או כתוב "הוסף נכס"...'
-                            }
-                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl py-3 px-4 text-sm text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-cyan-500 outline-none transition-all shadow-inner resize-none h-14 custom-scrollbar"
-                            rows={1}
-                        />
+                    {/* Input area */}
+                    <div className="px-6 py-4 bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {quickPrompts.map((q, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => handleSend(q)}
+                                    className="text-[11px] px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-cyan-500 hover:text-cyan-600 transition-all flex items-center gap-1.5"
+                                >
+                                    {i === 0 ? <PlusCircle className="w-3 h-3" /> : <MessageSquarePlus className="w-3 h-3" />}
+                                    {q}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="relative max-w-4xl mx-auto flex gap-3">
+                            <textarea
+                                value={input}
+                                onChange={e => setInput(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                                placeholder={
+                                    awaitingConfirm ? 'הקלד "כן" לשמירה או "לא" לביטול...'
+                                    : wizardStep !== null ? 'הקלד את תשובתך...'
+                                    : 'שאלו את ה-AI, או כתוב "הוסף נכס"...'
+                                }
+                                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl py-3 px-4 text-sm text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-cyan-500 outline-none transition-all shadow-inner resize-none h-14 custom-scrollbar"
+                                rows={1}
+                            />
+                            <button
+                                onClick={() => handleSend()}
+                                disabled={!input.trim() || loading}
+                                className={`flex items-center justify-center w-14 h-14 rounded-2xl transition shadow-lg
+                                    ${!input.trim() || loading
+                                        ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                                        : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-500/20 hover:scale-105 active:scale-95'}`}
+                            >
+                                <Send className="w-6 h-6" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── Sessions history sidebar ── */}
+                <div className="hidden md:flex w-56 flex-col bg-white dark:bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex-shrink-0">
+
+                    {/* New conversation button */}
+                    <div className="p-3 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
                         <button
-                            onClick={() => handleSend()}
-                            disabled={!input.trim() || loading}
-                            className={`flex items-center justify-center w-14 h-14 rounded-2xl transition shadow-lg
-                                ${!input.trim() || loading
-                                    ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
-                                    : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-500/20 hover:scale-105 active:scale-95'}`}
+                            onClick={startNewConversation}
+                            className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold transition-all shadow-sm hover:shadow-cyan-500/20 hover:scale-[1.02] active:scale-95"
                         >
-                            <Send className="w-6 h-6" />
+                            <Plus className="w-4 h-4" />
+                            שיחה חדשה
                         </button>
+                    </div>
+
+                    {/* Label */}
+                    <div className="px-4 pt-3 pb-1 flex-shrink-0">
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            <Clock className="w-3 h-3" />
+                            היסטוריית שיחות
+                        </div>
+                    </div>
+
+                    {/* Sessions list */}
+                    <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1 custom-scrollbar">
+                        {sessions.map(s => (
+                            <button
+                                key={s.id}
+                                onClick={() => switchSession(s.id)}
+                                className={`group relative w-full text-right p-3 rounded-xl transition-all ${
+                                    s.id === activeId
+                                        ? 'bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-700/50'
+                                        : 'border border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                }`}
+                            >
+                                <div className="flex items-start gap-2">
+                                    <MessageSquare className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${s.id === activeId ? 'text-cyan-500' : 'text-slate-400'}`} />
+                                    <div className="flex-1 min-w-0 text-right">
+                                        <p className={`text-xs font-medium truncate leading-tight ${s.id === activeId ? 'text-cyan-700 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-300'}`}>
+                                            {s.title}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(s.updatedAt)}</p>
+                                    </div>
+                                </div>
+                                {/* Delete — appears on hover */}
+                                <span
+                                    role="button"
+                                    onClick={(e) => deleteSession(s.id, e)}
+                                    className="absolute top-2 left-2 p-1 rounded-lg opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all"
+                                    title="מחק שיחה"
+                                >
+                                    <Trash2 className="w-3 h-3" />
+                                </span>
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
 
+            {/* ── Footer disclaimer ── */}
             <div className="mt-4 flex items-center justify-between text-slate-400 px-2">
                 <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-500" />
